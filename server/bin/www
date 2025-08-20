@@ -1,0 +1,250 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('server:server');
+var http = require('http');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+const {Server} = require('socket.io');
+
+const io = new Server(server , {
+  cors : {
+    origin : '*',
+    methods: ['GET' , 'POST'],
+  }
+});
+
+var rooms = require('../store/rooms');
+
+io.on("connection", (socket) => {
+  // Handle new messages
+  socket.on("new-message", ({ roomId, username, message }) => {
+    if (!roomId || !username || !message) return;
+
+    console.log(`Message from ${username} in room ${roomId}: ${message}`);
+    io.to(roomId).emit("new-message", { username, message });
+  });
+
+  // Handle user joining a room
+  socket.on("join-room", ({ roomId, username }) => {
+    if (!rooms[roomId]) {
+      rooms[roomId] = { 
+        users: [], 
+        admin: username,
+        currentVideo: null // Track current video in room
+      };
+    }
+
+    if (!rooms[roomId].users.includes(username)) {
+      rooms[roomId].users.push(username);
+    }
+
+    socket.join(roomId);
+    socket.username = username;
+    socket.roomId = roomId;
+
+    // Send room update
+    io.to(roomId).emit("room-update", {
+      users: rooms[roomId].users,
+      admin: rooms[roomId].admin,
+    });
+
+    // If there's a current video, send it to the new user
+    if (rooms[roomId].currentVideo) {
+      socket.emit("video-loaded", rooms[roomId].currentVideo);
+    }
+
+    io.to(roomId).emit("new-message", {
+      username: "System",
+      message: `${username} joined the room.`,
+    });
+
+    console.log(`${username} joined room ${roomId}. Total users: ${rooms[roomId].users.length}`);
+  });
+
+  // Handle user leaving a room
+  socket.on("leave-room", () => {
+    const { roomId, username } = socket;
+    if (!roomId || !rooms[roomId]) return;
+
+    rooms[roomId].users = rooms[roomId].users.filter((u) => u !== username);
+
+    if (rooms[roomId].admin === username) {
+      rooms[roomId].admin = rooms[roomId].users[0] || null;
+    }
+
+    io.to(roomId).emit("room-update", {
+      users: rooms[roomId].users,
+      admin: rooms[roomId].admin,
+    });
+
+    io.to(roomId).emit("new-message", {
+      username: "System",
+      message: `${username} left the room.`,
+    });
+
+    socket.leave(roomId);
+
+    if (rooms[roomId].users.length === 0) {
+      delete rooms[roomId];
+      console.log(`Room ${roomId} deleted - no users remaining`);
+    }
+
+    console.log(`${username} left room ${roomId}`);
+  });
+
+  // Handle video loading - THIS WAS MISSING!
+  socket.on("video-loaded", ({ roomId, videoId, username }) => {
+    if (!roomId || !videoId || !username) return;
+    
+    console.log(`${username} loaded video ${videoId} in room ${roomId}`);
+    
+    // Store the current video in room data
+    if (rooms[roomId]) {
+      rooms[roomId].currentVideo = { videoId, username };
+    }
+    
+    // Broadcast to all users in the room (including the sender)
+    io.to(roomId).emit("video-loaded", { videoId, username });
+  });
+
+  // Handle play-video event - FIXED to include time parameter
+  socket.on("play-video", ({ roomId, username, time }) => {
+    if (!roomId || !username) return;
+    
+    console.log(`${username} started playing the video in room ${roomId} at time ${time}`);
+    io.to(roomId).emit("play-video", { username, time: time || 0 });
+  });
+
+  // Handle pause-video event - FIXED to include time parameter
+  socket.on("pause-video", ({ roomId, username, time }) => {
+    if (!roomId || !username) return;
+    
+    console.log(`${username} paused the video in room ${roomId} at time ${time}`);
+    io.to(roomId).emit("pause-video", { username, time: time || 0 });
+  });
+
+  // Handle seek-video event (optional - for future use)
+  socket.on("seek-video", ({ roomId, username, time }) => {
+    if (!roomId || !username || time === undefined) return;
+    
+    console.log(`${username} seeked to ${time}s in room ${roomId}`);
+    io.to(roomId).emit("seek-video", { username, time });
+  });
+
+  // Handle user disconnecting
+  socket.on("disconnect", () => {
+    const { roomId, username } = socket;
+    if (roomId && rooms[roomId]) {
+      if (!rooms[roomId].users.includes(username)) return;
+
+      rooms[roomId].users = rooms[roomId].users.filter((u) => u !== username);
+      
+      // Transfer admin if current admin disconnected
+      if (rooms[roomId].admin === username) {
+        rooms[roomId].admin = rooms[roomId].users[0] || null;
+      }
+
+      io.to(roomId).emit("room-update", {
+        users: rooms[roomId].users,
+        admin: rooms[roomId].admin,
+      });
+
+      io.to(roomId).emit("new-message", {
+        username: "System",
+        message: `${username} disconnected.`,
+      });
+
+      // Clean up empty rooms
+      if (rooms[roomId].users.length === 0) {
+        delete rooms[roomId];
+        console.log(`Room ${roomId} deleted - no users remaining after disconnect`);
+      }
+
+      console.log(`${username} disconnected from room ${roomId}`);
+    }
+  });
+});
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}
