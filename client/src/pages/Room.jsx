@@ -5,7 +5,9 @@ import { useLocation } from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Video, Users, Copy, Check, LogOut, Play, Pause, ExternalLink, Send, MessageCircle } from 'lucide-react';
 
-const socket = io('http://localhost:3000'); // Adjust backend URL
+const socket = io("https://letuswatch.onrender.com", {
+  transports: ["websocket"],
+});
 
 export default function Room() {
   const { roomId } = useParams();

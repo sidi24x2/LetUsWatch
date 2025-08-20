@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-    baseURL:'http://localhost:3000/api/',
+    baseURL:'https://letuswatch.onrender.com/api', // Update with your actual base URL
 });
 
 export const createRoom = async(username) => {
