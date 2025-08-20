@@ -272,7 +272,7 @@ export default function Room() {
           <div className="flex items-center space-x-4">
             <h1 className="text-2xl lg:text-3xl font-bold tracking-wide flex items-center">
               <img src="/logo.png" alt="logo" className="h-12 w-12 lg:h-[7rem] lg:w-[7rem] rounded-full" />
-              <span className="ml-2">Watch Together</span>
+              <span className="ml-2">Let Us Watch</span>
             </h1>
             <div className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-full shadow-md">
               <span className="text-purple-200 text-sm">Room:</span>
