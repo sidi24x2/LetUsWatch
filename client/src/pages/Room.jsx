@@ -303,13 +303,13 @@ export default function Room() {
         </div>
       </header>
 
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      {/* <ToastContainer toasts={toasts} removeToast={removeToast} /> */}
 
       {/* Main Content */}
       <main className="flex flex-col lg:flex-row justify-between mx-auto p-6 max-w-6xl">
         {/* Video Area */}
         <section className="flex-1">
-          <div className="bg-black/20 backdrop-blur-lg rounded-xl p-4 lg:p-6 border border-white/10 shadow-lg">
+          <div className="bg-black/20 backdrop-blur-lg rounded-xl border p-0   border-white/10 shadow-lg w-[100%]">
             {currentVideo ? (
               <div className="space-y-6">
                 <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-md">
@@ -389,7 +389,7 @@ export default function Room() {
 
         {/* Sidebar */}
         <aside className="w-full lg:w-80 space-y-6 mt-6 lg:mt-0 lg:ml-4">
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 flex flex-col h-96 shadow-lg">
+          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 flex flex-col h-96 W-FULL shadow-lg">
             <div className="p-4 border-b border-white/20">
               <h3 className="text-lg font-semibold flex items-center">
                 <MessageCircle className="w-5 h-5 mr-2" />

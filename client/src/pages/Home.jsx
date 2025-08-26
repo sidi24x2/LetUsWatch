@@ -61,8 +61,8 @@ function Home() {
 
     const handleJoin = async() => {
         try {
-            let data = await joinRoom(roomIdInput , username);
             setIsLoading(true);
+            let data = await joinRoom(roomIdInput , username);
 
             console.log(`room found` , data);
 
@@ -83,11 +83,13 @@ function Home() {
                 alt="Logo"
                 className="h-[20rem] w-[20rem] mx-auto my-[-5rem] brightness-0 invert" 
               />
-            <label htmlFor="username" className="">Your Username <br/>
-                <input type="text" name="username" className=" rounded-2xl my-4 p-4 border w-full outline-none" placeholder="Enter your username" value={username} onChange={(e) => setUsername(e.target.value)}/>
-                
-            </label>
-            <button onClick={handleCreate}  className="rounded-2xl text-2xl p-4 cursor-pointer hover:bg-purple-400 bg-purple-300 text-white disabled:cursor-not-allowed" disabled={!username}>Create Room + </button>
+
+            <label htmlFor="username" className="text-2xl block z-20">Your Username</label>
+            <input type="text"  value={username} onChange={(e) => setUsername(e.target.value)} id="username" 
+            placeholder="Enter your username..." className="p-4 border rounded-2xl w-full outline-none mb-4 mt-2 z-20"/>
+
+
+            <button onClick={handleCreate}  className="rounded-2xl text-2xl p-4 cursor-pointer hover:bg-purple-400 bg-purple-300 text-white disabled:cursor-not-allowed" disabled={!username}> {isLoading && !isJoining ? 'Creating Room...' : 'Create Room +'} </button>
             <div className="text-center my-4 font-bold flex justify-evenly items-center"> <hr className="border w-full"/> <span className="mx-2">OR</span><hr className="border w-full"/></div>
 
             {/* Joing Existing Room */}
@@ -98,8 +100,9 @@ function Home() {
 
            {isJoining && (
             <div className="flex-col my-4"> 
-            <span className="text-2xl block">Room Id</span><input type="text" value={roomIdInput} onChange={(e) => setRoomIdInput(e.target.value)} id="" placeholder="Enter Room ID" className="p-4 border rounded-2xl w-full outline-none"/>
-            <button className="rounded-2xl p-4 bg-sky-200 w-full mt-4 cursor-pointer disabled:cursor-not-allowed" disabled={!username} onClick={handleJoin} >Join Room ⎆</button>
+            <label htmlFor="roomId" className="text-2xl block">Room Id</label>
+            <input type="text"  value={roomIdInput} onChange={(e) => setRoomIdInput(e.target.value)} id="roomId" placeholder="Enter Room ID" className="p-4 border rounded-2xl w-full outline-none"/>
+            <button className="rounded-2xl p-4 text-2xl bg-sky-200 w-full mt-4 cursor-pointer disabled:cursor-not-allowed" disabled={!username} onClick={handleJoin} >{isLoading ? 'Joining Room... ' : 'Join Room ⎆'} </button>
             </div>
            )}
             
@@ -118,5 +121,4 @@ export default Home;
 
 
 
-// NEwwww
 
