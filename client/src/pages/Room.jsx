@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import io from 'socket.io-client';
 import { useLocation } from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Video, Users, Copy, Check, LogOut, Play, Pause, ExternalLink, Send, MessageCircle } from 'lucide-react';
+import socket from '../socket';
 
-const socket = io("https://letuswatch.onrender.com", {
-  transports: ["websocket"],
-});
+
+
 
 export default function Room() {
   const { roomId } = useParams();
@@ -29,63 +28,78 @@ export default function Room() {
 
 
 
-  // Addint Toasts 
-  const addToast = (message, type = 'info') => {
-    const id = ++toastIdRef.current;
-    const newToast = { id, message, type };
-    setToasts(prev => [...prev, newToast]);
+  // // Addint Toasts 
+  // const addToast = (message, type = 'info') => {
+  //   const id = ++toastIdRef.current;
+  //   const newToast = { id, message, type };
+  //   setToasts(prev => [...prev, newToast]);
     
-    // Auto-remove toast after 4 seconds
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  };
+  //   // Auto-remove toast after 4 seconds
+  //   setTimeout(() => {
+  //     removeToast(id);
+  //   }, 4000);
+  // };
   
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  };
+  // const removeToast = (id) => {
+  //   setToasts(prev => prev.filter(toast => toast.id !== id));
+  // };
   
-
-  const onReady = ((event) => {
-    playerRef.current = event.target;
-  });
-
-  // Handle YouTube player state changes (when user clicks on video controls)
-
+  // YouTube player options
   const onStateChange = (event) => {
-    const playerState = event.data;
-    const currentTime = playerRef.current ? playerRef.current.getCurrentTime() : 0;
-
-    // YouTube player states: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
-    if (playerState === 1 && !isPlaying) { // Playing
-      setIsPlaying(true);
-      socket.emit('play-video', { roomId, username, time: currentTime });
-    } else if (playerState === 2 && isPlaying) { // Paused
-      setIsPlaying(false);
-      socket.emit('pause-video', { roomId, username, time: currentTime });
+    // Add safety check for player reference
+    if (!playerRef.current) return;
+    
+    try {
+      const playerState = event.data;
+      const currentTime = playerRef.current.getCurrentTime();
+  
+      // YouTube player states: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
+      if (playerState === 1 && !isPlaying) { // Playing
+        setIsPlaying(true);
+        socket.emit('play-video', { roomId, username, time: currentTime });
+      } else if (playerState === 2 && isPlaying) { // Paused
+        setIsPlaying(false);
+        socket.emit('pause-video', { roomId, username, time: currentTime });
+      }
+    } catch (error) {
+      console.warn('YouTube player state change error (likely due to player cleanup):', error);
+      // Don't throw - this is expected when player is being replaced
     }
   };
-
+  
+  const onReady = (event) => {
+    console.log('YouTube player ready');
+    playerRef.current = event.target;
+  };
+  
   useEffect(() => {
     if(!playerRef.current) return;
-    if(isPlaying) {
-      playerRef.current.playVideo();
-    } else {
-      playerRef.current.pauseVideo();
+    
+    try {
+      if(isPlaying) {
+        playerRef.current.playVideo();
+      } else {
+        playerRef.current.pauseVideo();
+      }
+    } catch (error) {
+      console.warn('Player action failed (player may be loading):', error);
     }
   }, [isPlaying]);
-
+  
   const togglePlayPause = () => {
     if(!playerRef.current) return;
-
-    const newState = !isPlaying;
-    setIsPlaying(newState);
-
-    const currentTime = playerRef.current.getCurrentTime();
-
-    socket.emit(newState ? 'play-video' : 'pause-video', { roomId, username, time : currentTime });
+  
+    try {
+      const newState = !isPlaying;
+      setIsPlaying(newState);
+  
+      const currentTime = playerRef.current.getCurrentTime();
+      socket.emit(newState ? 'play-video' : 'pause-video', { roomId, username, time : currentTime });
+    } catch (error) {
+      console.error('Toggle play/pause failed:', error);
+    }
   };
-
+  
   useEffect(() => {
     // Join the room
     if (!roomId || !username) return;
@@ -105,37 +119,50 @@ export default function Room() {
     };
   
     socket.on("new-message", handleNewMessage);
-
+  
     // Handle play/pause events
     const handlePlayVideo = ({ username: eventUsername, time }) => {
-      // Only sync if the event is from another user
-      if (eventUsername !== username) {
-        setIsPlaying(true);
-        if (playerRef.current) {
-          playerRef.current.seekTo(time, true);
-          playerRef.current.playVideo();
+      try {
+        // Only sync if the event is from another user
+        if (eventUsername !== username) {
+          setIsPlaying(true);
+          if (playerRef.current) {
+            playerRef.current.seekTo(time || 0, true);
+            playerRef.current.playVideo();
+          }
         }
+        addMessageToChat(`${eventUsername} started playing the video.`);
+      } catch (error) {
+        console.error('Error handling play-video event:', error);
       }
-      addMessageToChat(`${eventUsername} started playing the video.`);
     };
     
     const handlePauseVideo = ({ username: eventUsername, time }) => {
-      // Only sync if the event is from another user
-      if (eventUsername !== username) {
-        setIsPlaying(false);
-        if (playerRef.current) {
-          playerRef.current.seekTo(time, true);
-          playerRef.current.pauseVideo();
+      try {
+        // Only sync if the event is from another user
+        if (eventUsername !== username) {
+          setIsPlaying(false);
+          if (playerRef.current) {
+            playerRef.current.seekTo(time || 0, true);
+            playerRef.current.pauseVideo();
+          }
         }
+        addMessageToChat(`${eventUsername} paused the video.`);
+      } catch (error) {
+        console.error('Error handling pause-video event:', error);
       }
-      addMessageToChat(`${eventUsername} paused the video.`);
     };
     
     socket.on("play-video", handlePlayVideo);
     socket.on("pause-video", handlePauseVideo);
-
-    // Handle video loading - this is the key fix for video sync
+  
+    // Handle video loaded events
     const handleVideoLoaded = ({ videoId, username: eventUsername }) => {
+      console.log('Video loaded event received:', { videoId, eventUsername });
+      
+      // CRITICAL: Clear player reference before setting new video
+      playerRef.current = null;
+      
       setCurrentVideo({
         id: videoId,
         url: `https://www.youtube.com/watch?v=${videoId}`,
@@ -153,7 +180,7 @@ export default function Room() {
         addMessageToChat(`${eventUsername} loaded a new video.`);
       }
     };
-
+  
     socket.on("video-loaded", handleVideoLoaded);
   
     // Cleanup listeners on unmount
@@ -167,32 +194,35 @@ export default function Room() {
   }, [roomId, username]);
   
   const addMessageToChat = (message) => {
-    setMessages((prevMessages) => [...prevMessages, message].slice(-200)); // Limit to 200 messages
+    setMessages((prevMessages) => [...prevMessages, message].slice(-200));
   };
-
+  
   const sendMessage = () => {
     if (newMessage.trim().length > 200) {
       alert('Message cannot exceed 200 characters.');
       return;
     }
-
+  
     socket.emit('new-message', { roomId, username, message: newMessage });
     setNewMessage('');
   };
-
+  
   const extractVideoId = (url) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
   };
-
+  
   const loadVideo = () => {
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
       alert('Please enter a valid YouTube URL!');
       return;
     }
-
+  
+    // CRITICAL: Clear player reference before loading new video
+    playerRef.current = null;
+  
     // Set current video locally first
     setCurrentVideo({
       id: videoId,
@@ -202,10 +232,10 @@ export default function Room() {
       loadedBy: username,
       loadedAt: new Date().toLocaleTimeString(),
     });
-
+  
     // Reset playing state
     setIsPlaying(false);
-
+  
     // Emit to other users
     socket.emit('video-loaded', { roomId, videoId, username });
     
@@ -228,41 +258,38 @@ export default function Room() {
   };
 
 
-  const ToastContainer = ({ toasts, removeToast }) => (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
-    {toasts.map((toast) => (
-      <div
-        key={toast.id}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm animate-in slide-in-from-right duration-300 ${
-          toast.type === 'success' ? 'bg-green-500/90 border-l-4 border-green-400' :
-          toast.type === 'error' ? 'bg-red-500/90 border-l-4 border-red-400' :
-          toast.type === 'warning' ? 'bg-yellow-500/90 border-l-4 border-yellow-400' :
-          'bg-blue-500/90 border-l-4 border-blue-400'
-        }`}
-      >
-        <div className="flex-shrink-0">
-          {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
-          {toast.type === 'error' && <AlertCircle className="w-5 h-5" />}
-          {toast.type === 'warning' && <AlertCircle className="w-5 h-5" />}
-          {toast.type === 'info' && <Info className="w-5 h-5" />}
-        </div>
-        <div className="flex-1 text-white text-sm font-medium">
-          {toast.message}
-        </div>
-        <button
-          onClick={() => removeToast(toast.id)}
-          className="flex-shrink-0 text-white/70 hover:text-white transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    ))}
-    </div>
-    )
+  // const ToastContainer = ({ toasts, removeToast }) => (
+  //   <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+  //   {toasts.map((toast) => (
+  //     <div
+  //       key={toast.id}
+  //       className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm animate-in slide-in-from-right duration-300 ${
+  //         toast.type === 'success' ? 'bg-green-500/90 border-l-4 border-green-400' :
+  //         toast.type === 'error' ? 'bg-red-500/90 border-l-4 border-red-400' :
+  //         toast.type === 'warning' ? 'bg-yellow-500/90 border-l-4 border-yellow-400' :
+  //         'bg-blue-500/90 border-l-4 border-blue-400'
+  //       }`}
+  //     >
+  //       <div className="flex-shrink-0">
+  //         {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
+  //         {toast.type === 'error' && <AlertCircle className="w-5 h-5" />}
+  //         {toast.type === 'warning' && <AlertCircle className="w-5 h-5" />}
+  //         {toast.type === 'info' && <Info className="w-5 h-5" />}
+  //       </div>
+  //       <div className="flex-1 text-white text-sm font-medium">
+  //         {toast.message}
+  //       </div>
+  //       <button
+  //         onClick={() => removeToast(toast.id)}
+  //         className="flex-shrink-0 text-white/70 hover:text-white transition-colors"
+  //       >
+  //         <X className="w-4 h-4" />
+  //       </button>
+  //     </div>
+  //   ))}
+  //   </div>
+  //   )
     
-
-  
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-200 to-red-500 text-white">
 
@@ -312,14 +339,13 @@ export default function Room() {
           <div className="bg-black/20 backdrop-blur-lg rounded-xl border p-0   border-white/10 shadow-lg w-[100%]">
             {currentVideo ? (
               <div className="space-y-6">
-                <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-md">
+                <div className="bg-black rounded-lg shadow-md">
                 <YouTube
                   videoId={currentVideo.id}
                   onReady={onReady}
                   onStateChange={onStateChange}
-                  className="w-full h-full aspect-video rounded-lg overflow-hidden"
                   opts={{
-                    playerVars: { autoplay: 0, controls: 1, disablekb: 1 }
+                    playerVars: { autoplay: 0, controls: 1, disablekb: 1 }, width: '100%', height: '400'
                   }}
                 />
                 </div>
