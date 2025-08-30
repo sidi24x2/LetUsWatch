@@ -391,9 +391,9 @@ export default function Room() {
       <main className="flex flex-col lg:flex-row justify-between mx-auto p-6 max-w-6xl">
         {/* Video Area */}
         <section className="flex-1">
-          <div className="bg-black/20 backdrop-blur-lg rounded-xl border p-0   border-white/10 shadow-lg w-[100%]">
+          <div className="bg-black/20 backdrop-blur-lg rounded-xl border p-4  border-white/10 shadow-lg w-[100%]">
             {currentVideo ? (
-              <div className="space-y-6">
+              <div className="space-y-6 p-4">
                 <div className="bg-black rounded-lg shadow-md">
                 <YouTube
                   videoId={currentVideo.id}
@@ -601,9 +601,6 @@ export default function Room() {
           </div>
         </aside>
       </main>
-
-     
-  
     </div>
   );
 }
