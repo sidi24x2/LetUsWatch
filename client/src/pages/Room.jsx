@@ -249,7 +249,7 @@ export default function Room() {
   }, [roomId, username]);
   
   const addMessageToChat = (message) => {
-    setMessages((prevMessages) => [...prevMessages, message].slice(-200));
+    setMessages((prevMessages) => [...prevMessages, message].slice());
   };
   
   const sendMessage = () => {

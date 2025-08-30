@@ -86,10 +86,9 @@ function Home() {
 
             <label htmlFor="username" className="text-2xl block z-20">Your Username</label>
             <input type="text"  value={username} onChange={(e) => setUsername(e.target.value)} id="username" 
-            placeholder="Enter your username..." className="p-4 border rounded-2xl w-full outline-none mb-4 mt-2 z-20"/>
+            placeholder="Enter your username..." className="p-4 border rounded-2xl w-full outline-none mb-4 mt-2 z-20"/> ̰
 
-
-            <button onClick={handleCreate}  className="rounded-2xl text-2xl p-4 cursor-pointer hover:bg-purple-400 bg-purple-300 text-white disabled:cursor-not-allowed" disabled={!username}> {isLoading && !isJoining ? 'Creating Room...' : 'Create Room +'} </button>
+            <button                       onClick={handleCreate}  className="rounded-2xl text-2xl p-4 cursor-pointer hover:bg-purple-400 bg-purple-300 text-white           disabled:cursor-not-allowed" disabled={!username}> {isLoading && !isJoining ? 'Creating Room...' : 'Create Room +'} </button>
             <div className="text-center my-4 font-bold flex justify-evenly items-center"> <hr className="border w-full"/> <span className="mx-2">OR</span><hr className="border w-full"/></div>
 
             {/* Joing Existing Room */}
@@ -100,7 +99,8 @@ function Home() {
 
            {isJoining && (
             <div className="flex-col my-4"> 
-            <label htmlFor="roomId" className="text-2xl block">Room Id</label>
+            <label htmlFor="roomId" className="text-2xl block">
+              Room Id</label>
             <input type="text"  value={roomIdInput} onChange={(e) => setRoomIdInput(e.target.value)} id="roomId" placeholder="Enter Room ID" className="p-4 border rounded-2xl w-full outline-none"/>
             <button className="rounded-2xl p-4 text-2xl bg-sky-200 w-full mt-4 cursor-pointer disabled:cursor-not-allowed" disabled={!username} onClick={handleJoin} >{isLoading ? 'Joining Room... ' : 'Join Room ⎆'} </button>
             </div>
@@ -114,11 +114,6 @@ function Home() {
     )
  
 
-}
+} 
 
 export default Home;
-
-
-
-
-
