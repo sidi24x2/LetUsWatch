@@ -26,6 +26,11 @@ export default function Room() {
   const [toasts, setToasts] = useState([]);
   const toastIdRef = useRef(0);
 
+  const chatContainerRef = useRef(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
+
+  
 
 
   // // Addint Toasts 
@@ -71,6 +76,56 @@ export default function Room() {
     console.log('YouTube player ready');
     playerRef.current = event.target;
   };
+
+  // Auto-scroll with user scroll detection
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
+    
+    const container = chatContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+    
+    if (isNearBottom) {
+      // User is near bottom, auto-scroll
+      container.scrollTo({
+        top: scrollHeight,
+        behavior: 'smooth'
+      });
+      setHasNewMessages(false);
+    } else {
+      // User is scrolled up, show indicator
+      setHasNewMessages(true);
+    }
+  }, [messages]);
+
+  // Handle manual scroll
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    
+    const container = chatContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+    
+    setShowScrollButton(!isNearBottom);
+    
+    if (isNearBottom) {
+      setHasNewMessages(false);
+    }
+  };
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+      setShowScrollButton(false);
+      setHasNewMessages(false);
+    }
+  };
+
+
   
   useEffect(() => {
     if(!playerRef.current) return;
@@ -345,7 +400,7 @@ export default function Room() {
                   onReady={onReady}
                   onStateChange={onStateChange}
                   opts={{
-                    playerVars: { autoplay: 0, controls: 1, disablekb: 1 }, width: '100%', height: '400'
+                    playerVars: { autoplay: 0, controls: 1, disablekb: 1  }, width: '100%', height: '400'
                   }}
                 />
                 </div>
@@ -415,14 +470,65 @@ export default function Room() {
 
         {/* Sidebar */}
         <aside className="w-full lg:w-80 space-y-6 mt-6 lg:mt-0 lg:ml-4">
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 flex flex-col h-96 W-FULL shadow-lg">
+          <div className="bg-white/10 mb-17 backdrop-blur-lg rounded-xl border border-white/20 flex flex-col h-96 W-FULL shadow-lg">
             <div className="p-4 border-b border-white/20">
               <h3 className="text-lg font-semibold flex items-center">
                 <MessageCircle className="w-5 h-5 mr-2" />
                 Chat
               </h3>
             </div>
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent">
+            <div className="relative">
+              <div 
+                ref={chatContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 p-4 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent max-h-80"
+              >
+                {messages.length > 0 ? (
+                  messages.map((message, index) => (
+                    <div 
+                      key={index} 
+                      className={`text-sm p-2 rounded ${
+                        message.includes('You ') ? 
+                        'bg-purple-500/20 border-l-2 border-purple-500' : 
+                        'bg-gray-500/10'
+                      }`}
+                    >
+                      {message}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-purple-300 text-sm">
+                    No messages yet. Start the conversation! 💬
+                  </div>
+                )}
+              </div>
+              
+              {/* Scroll to bottom button */}
+              {showScrollButton && (
+                <button
+                  onClick={scrollToBottom}
+                  className={`absolute bottom-2 right-2 bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-full shadow-lg transition-all duration-200 ${
+                    hasNewMessages ? 'animate-pulse ring-2 ring-purple-300' : ''
+                  }`}
+                  title={hasNewMessages ? 'New messages' : 'Scroll to bottom'}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                  {hasNewMessages && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-3 h-3"></span>
+                  )}
+                </button>
+              )}
+              
+              {/* New message indicator */}
+              {hasNewMessages && !showScrollButton && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-500/20 to-transparent h-8 flex items-end justify-center pb-1">
+                  <span className="text-xs text-purple-300 animate-pulse">New messages ↓</span>
+                </div>
+              )}
+            </div>
+            {/* <div className="flex-1 p-4 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent">
               {messages.length > 0 ? (
                 messages.map((message, index) => (
                   <div key={index} className="text-sm">
@@ -434,7 +540,7 @@ export default function Room() {
                   No messages yet. Start the conversation! 💬
                 </div>
               )}
-            </div>
+            </div> */}
             <div className="p-4 border-t border-white/20">
               <div className="flex space-x-2">
                 <input
