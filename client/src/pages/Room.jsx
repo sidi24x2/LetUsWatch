@@ -149,6 +149,7 @@ export default function Room() {
       setIsPlaying(newState);
   
       const currentTime = playerRef.current.getCurrentTime();
+
       socket.emit(newState ? 'play-video' : 'pause-video', { roomId, username, time : currentTime });
     } catch (error) {
       console.error('Toggle play/pause failed:', error);
@@ -161,10 +162,25 @@ export default function Room() {
     socket.emit("join-room", { roomId, username });
   
     // Handle room updates
-    const handleRoomUpdate = ({ users, admin }) => {
+    const handleRoomUpdate = ({ users, admin, currentVideo, timestamp }) => {
       setUsers(users);
       setAdmin(admin);
+    
+      console.log('Room update received:', { users, admin, currentVideo, timestamp });
+      if (currentVideo) {
+        setCurrentVideo({
+          id: currentVideo.id,
+          url: currentVideo.url,
+          embedUrl: currentVideo.embedUrl,
+        });
+    
+        if (playerRef.current) {
+          playerRef.current.seekTo(timestamp || 0, true);
+        }
+      }
     };
+    
+    
   
     socket.on("room-update", handleRoomUpdate);
   
@@ -302,7 +318,8 @@ export default function Room() {
   };
 
   const handleLeave = () => {
-    socket.emit('leave-room');
+    let timestamp = playerRef.current ? playerRef.current.getCurrentTime() : 0;
+    socket.emit('leave-room' , {roomId,currentVideo, timestamp});
     navigate('/');
   };
 
@@ -400,7 +417,7 @@ export default function Room() {
                   onReady={onReady}
                   onStateChange={onStateChange}
                   opts={{
-                    playerVars: { autoplay: 0, controls: 1, disablekb: 1  }, width: '100%', height: '400'
+                    playerVars: { autoplay: 0, controls: 1}, width: '100%', height: '400'
                   }}
                 />
                 </div>

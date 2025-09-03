@@ -41,47 +41,56 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("new-message", { username, message });
   });
 
+  // Save data
+
+  socket.on("saveRoomData", ({ roomId, currentVideo , times }) => {
+    rooms[roomId] = {
+      ...rooms[roomId],
+      currentVideo,
+      time
+    };
+    console.log(`Room ${roomId} data saved:`, rooms[roomId]);
+  }); 
+
   // Handle user joining a room
   socket.on("join-room", ({ roomId, username }) => {
     if (!rooms[roomId]) {
-      rooms[roomId] = { 
-        users: [], 
+      rooms[roomId] = {
+        users: [],
         admin: username,
-        currentVideo: null // Track current video in room
+        currentVideo: { videoId: null, loadedBy: null },
+        timestamp: 0,
       };
     }
-
+  
     if (!rooms[roomId].users.includes(username)) {
       rooms[roomId].users.push(username);
     }
-
+  
     socket.join(roomId);
     socket.username = username;
     socket.roomId = roomId;
-
-    // Send room update
-    io.to(roomId).emit("room-update", {
+  
+    const roomState = {
       users: rooms[roomId].users,
       admin: rooms[roomId].admin,
-    });
-
-    // If there's a current video, send it to the new user
-    if (rooms[roomId].currentVideo) {
-      socket.emit("video-loaded", rooms[roomId].currentVideo);
-    }
-
-    io.to(roomId).emit("new-message", {
-      username: "System",
-      message: `${username} joined the room.`,
-    });
-
-    console.log(`${username} joined room ${roomId}. Total users: ${rooms[roomId].users.length}`);
+      currentVideo: rooms[roomId].currentVideo,
+      timestamp: rooms[roomId].timestamp,
+    };
+  
+    io.to(roomId).emit("room-update", roomState);
+  
+    console.log(`✅ ${username} joined room ${roomId}`, roomState);
   });
+  
 
   // Handle user leaving a room
-  socket.on("leave-room", () => {
-    const { roomId, username } = socket;
+  socket.on("leave-room", ({roomId , currentVideo , timestamp}) => {
+    const { username } = socket;
     if (!roomId || !rooms[roomId]) return;
+
+    rooms[roomId].currentVideo = currentVideo;
+    rooms[roomId].timestamp = timestamp;
 
     rooms[roomId].users = rooms[roomId].users.filter((u) => u !== username);
 
@@ -101,9 +110,9 @@ io.on("connection", (socket) => {
 
     socket.leave(roomId);
 
-    if (rooms[roomId].users.length === 0) {
+    if (rooms[roomId].users.length === 0 && roomId !== 'dsa' && roomId !== 'music') {
       delete rooms[roomId];
-      console.log(`Room ${roomId} deleted - no users remaining`);
+      console.log(`Room ${roomId} deleted - no users remaining after disconnect`);
     }
 
     console.log(`${username} left room ${roomId}`);
@@ -112,30 +121,37 @@ io.on("connection", (socket) => {
   // Handle video loading - THIS WAS MISSING!
   socket.on("video-loaded", ({ roomId, videoId, username }) => {
     if (!roomId || !videoId || !username) return;
-    
+  
     console.log(`${username} loaded video ${videoId} in room ${roomId}`);
-    
-    // Store the current video in room data
+  
     if (rooms[roomId]) {
-      rooms[roomId].currentVideo = { videoId, username };
+      rooms[roomId].currentVideo = { videoId, loadedBy: username };
+      rooms[roomId].timestamp = 0; // reset playback when a new video is loaded
     }
-    
-    // Broadcast to all users in the room (including the sender)
-    io.to(roomId).emit("video-loaded", { videoId, username });
+  
+    io.to(roomId).emit("video-loaded", {
+      videoId,
+      username,
+      timestamp: rooms[roomId]?.timestamp || 0,
+    });
   });
+  
 
   // Handle play-video event - FIXED to include time parameter
   socket.on("play-video", ({ roomId, username, time }) => {
     if (!roomId || !username) return;
     
+    rooms[roomId].timestamp = time;
     console.log(`${username} started playing the video in room ${roomId} at time ${time}`);
     io.to(roomId).emit("play-video", { username, time: time || 0 });
   });
 
+  
+
   // Handle pause-video event - FIXED to include time parameter
   socket.on("pause-video", ({ roomId, username, time }) => {
     if (!roomId || !username) return;
-    
+    rooms[roomId].timestamp = time;
     console.log(`${username} paused the video in room ${roomId} at time ${time}`);
     io.to(roomId).emit("pause-video", { username, time: time || 0 });
   });
@@ -172,7 +188,9 @@ io.on("connection", (socket) => {
       });
 
       // Clean up empty rooms
-      if (rooms[roomId].users.length === 0) {
+      
+      if (rooms[roomId].users.length === 0 && roomId !== 'dsa' && roomId !== 'music') {
+        saveRoo
         delete rooms[roomId];
         console.log(`Room ${roomId} deleted - no users remaining after disconnect`);
       }

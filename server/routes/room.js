@@ -33,9 +33,11 @@ router.post("/create", (req, res) => {
 
 router.post("/join", (req, res) => {
   
+  console.log('joining room ')
   const {roomId , username } = req.body;
   console.log(req.body);
-  console.log(roomId);
+  console.log(roomId , 'this is the room id');
+  console.log(rooms , 'these are the rooms');
 
   if (!rooms[roomId]) {
     return res.status(404).json({ error: "Room not found" });
