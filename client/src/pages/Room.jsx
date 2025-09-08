@@ -425,7 +425,7 @@ export default function Room() {
                   <div>
                     <h3 className="text-lg font-semibold">{currentVideo.title || 'Video Title'}</h3>
                     <p className="text-purple-300 text-sm">
-                      Loaded by {currentVideo.loadedBy || 'Unknown'} at {currentVideo.loadedAt || 'Unknown time'}
+                      Loaded by {currentVideo.loadedBy || 'System'} at {currentVideo.loadedAt ||new Date().toLocaleTimeString()}
                     </p>
                   </div>
                   <a
